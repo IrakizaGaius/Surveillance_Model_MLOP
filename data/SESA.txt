@@ -1,0 +1,23 @@
+Title: Sound Events for Surveillance Applications (SESA) Dataset
+Autor: Tito Spadini
+
+# Classes:
+	
+0 - Casual (not a threat)
+1 - Gunshot
+2 - Explosion
+3 - Siren (also contains alarms)
+
+
+# Audio Specs:
+
+- WAV
+- Mono Channel
+- 16 kHz
+- 16-bit
+- up to 33 seconds
+
+
+# Description:
+
+The audio files were obtained from Freesound. The dataset was divided between train (480 files) and test (105 files) folders.
