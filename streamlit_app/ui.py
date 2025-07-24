@@ -1,10 +1,9 @@
 import streamlit as st
 import requests
 import pandas as pd
-import time
 import datetime
 
-API_URL = "http://localhost:8000"
+API_URL = "http://localhost:5000"
 
 st.set_page_config(page_title="Surveillance Audio Classifier", layout="centered")
 st.title("🔊 Surveillance Sound Classifier")
