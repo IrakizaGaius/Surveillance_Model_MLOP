@@ -1,0 +1,14 @@
+fastapi
+uvicorn
+tensorflow
+librosa
+numpy
+python-multipart
+tensorflow_hub
+streamlit
+pydub
+scikit-learn
+pandas
+matplotlib
+seaborn
+requests
