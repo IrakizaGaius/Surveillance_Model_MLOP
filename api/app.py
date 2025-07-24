@@ -8,7 +8,7 @@ import shutil
 import time
 
 app = FastAPI()
-MODEL_PATH = 'models/yamnet_sesa_model.h5'
+MODEL_PATH = 'models/yamnet_sesa_model.keras'
 model = load_model(MODEL_PATH)
 start_time = time.time()
 
