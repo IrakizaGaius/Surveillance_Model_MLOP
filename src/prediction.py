@@ -3,6 +3,7 @@ import librosa
 import tensorflow as tf
 import tensorflow_hub as hub
 from keras import layers, models
+from keras.models import load_model as keras_load_model
 import os
 import logging
 from typing import Optional, Dict, Any
@@ -82,19 +83,14 @@ def extract_embedding(waveform: np.ndarray) -> Optional[np.ndarray]:
 def load_model(model_path: str = 'models/yamnet_sesa_model.keras') -> models.Model:
     """
     Load the classification model from disk.
-
-    Args:
-        model_path: Path to the saved Keras model.
-
-    Returns:
-        Loaded Keras model.
-
-    Raises:
-        FileNotFoundError if model_path does not exist.
     """
     if not os.path.exists(model_path):
         raise FileNotFoundError(f"Model file not found at: {model_path}")
-    return load_model(model_path)
+    model = keras_load_model(model_path)
+    if not isinstance(model, models.Model):
+        raise TypeError(f"Loaded object is not a keras.models.Model, got type: {type(model)}")
+    return model
+
 
 def predict_audio(file_path: str, model: models.Model) -> Optional[Dict[str, Any]]:
     """
