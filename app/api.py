@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Union
 from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.responses import JSONResponse
@@ -75,6 +76,12 @@ class PredictionResponse(BaseModel):
     class_id: int
     label: str
     confidence: float
+    model_version: Union[str, None] = None
+
+def extract_model_version(model_path: str) -> str:
+    if "_v" in model_path:
+        return model_path.split("_v")[-1].replace(".keras", "")
+    return "unknown"
 
 @app.post(
     "/predict",
@@ -97,6 +104,9 @@ async def predict(file: UploadFile = File(...)):
 
         if result is None:
             raise HTTPException(status_code=400, detail="Prediction failed")
+        
+        result["model_version"] = extract_model_version(MODEL_PATH)
+        result['timestamp'] = datetime.now().isoformat()
 
         return result
 
