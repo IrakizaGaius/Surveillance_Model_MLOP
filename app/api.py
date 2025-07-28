@@ -5,91 +5,110 @@ from fastapi.responses import JSONResponse
 from src.prediction import load_model, predict_audio
 from src.model import train_model
 from src.preprocessing import load_data_from_directory
+from pydantic import BaseModel
 import os
 import shutil
 import time
 import threading
-from pydantic import BaseModel
 
-
-app = FastAPI(title="Surveillance Audio Classification API",
+app = FastAPI(
+    title="Surveillance Audio Classification API",
     description="An API to detect and classify sounds like gunshots, explosions, and other surveillance-related audio.",
-    version="1.0.0")
+    version="1.0.0"
+)
 
-MODEL_PATH = 'models/yamnet_sesa_model.keras'
+# === Utility Functions ===
+
+def get_latest_model_path() -> str:
+    model_dir = "models"
+    # Find all subdirectories named like model_vX
+    version_dirs = [d for d in os.listdir(model_dir) if d.startswith("model_v") and os.path.isdir(os.path.join(model_dir, d))]
+    if not version_dirs:
+        raise FileNotFoundError("No model version folders found in 'models' directory.")
+
+    # Sort folders by version number descending
+    version_dirs.sort(key=lambda d: int(d.split("_v")[-1]), reverse=True)
+
+    latest_dir = version_dirs[0]
+    # Find the .keras file inside that folder
+    keras_files = [f for f in os.listdir(os.path.join(model_dir, latest_dir)) if f.endswith(".keras")]
+    if not keras_files:
+        raise FileNotFoundError(f"No .keras model file found inside {latest_dir}")
+
+    # Assuming only one model file per version folder:
+    return os.path.join(model_dir, latest_dir, keras_files[0])
+
+
+def extract_model_version(model_path: str) -> str:
+    # Example path: models/model_v1/sesa_model_v1.keras
+    filename = os.path.basename(model_path)
+    if "_v" in filename:
+        return filename.split("_v")[-1].replace(".keras", "")
+    # fallback, maybe check folder name
+    folder = os.path.basename(os.path.dirname(model_path))
+    if folder.startswith("model_v"):
+        return folder.split("_v")[-1]
+    return "unknown"
+
+
+# === Initialization ===
+
+MODEL_PATH = get_latest_model_path()
+model_version = extract_model_version(MODEL_PATH)
+
 model_lock = threading.Lock()
 model = load_model(MODEL_PATH)
 start_time = time.time()
 
+# === Response Schemas ===
+
 class RootResponse(BaseModel):
     message: str
-
-
-@app.get("/", response_model=RootResponse, summary="Root status check", tags=["General"])
-def read_root():
-    """
-    Health check endpoint for the API.
-
-    Returns:
-        A simple message confirming the API is running.
-    """
-    return {"message": "Surveillance Sound Classification API"}
 
 class StatusResponse(BaseModel):
     status: str
     uptime_seconds: int
     model_path: str
-
-@app.get("/status", response_model=StatusResponse, summary="API status check", tags=["Monitoring"])
-def get_status():
-    """
-    Returns API uptime and model path information.
-
-    Useful for checking if the service and model are available and running properly.
-    """
-    uptime = time.time() - start_time
-    return {
-        "status": "ok",
-        "uptime_seconds": int(uptime),
-        "model_path": MODEL_PATH
-    }
-
+    model_version: str
 
 class HealthResponse(BaseModel):
     status: str
-
-@app.get(
-    "/health",
-    response_model=HealthResponse,
-    summary="Health check",
-    tags=["Monitoring"]
-)
-def health_check():
-    """
-    Lightweight health check to confirm the API is responsive.
-
-    Useful for uptime monitoring tools like AWS ELB, GCP Load Balancer, or Kubernetes liveness checks.
-    """
-    return {"status": "ok"}
 
 class PredictionResponse(BaseModel):
     class_id: int
     label: str
     confidence: float
-    model_version: Union[str, None] = None
+    model_version: Union[str, None]
+    timestamp: str
 
-def extract_model_version(model_path: str) -> str:
-    if "_v" in model_path:
-        return model_path.split("_v")[-1].replace(".keras", "")
-    return "unknown"
+class RetrainResponse(BaseModel):
+    message: str
+    samples: int
+    last_accuracy: Union[float, str]
+    model_version: str
+    model_path: str
 
-@app.post(
-    "/predict",
-    response_model=PredictionResponse,
-    summary="Predict sound class",
-    tags=["Model Inference"],
-    description="Upload a `.wav` file and receive the predicted sound class with confidence."
-)
+# === Endpoints ===
+
+@app.get("/", response_model=RootResponse, summary="Root status check", tags=["General"])
+def read_root():
+    return {"message": "Surveillance Sound Classification API"}
+
+@app.get("/status", response_model=StatusResponse, summary="API status check", tags=["Monitoring"])
+def get_status():
+    uptime = int(time.time() - start_time)
+    return {
+        "status": "ok",
+        "uptime_seconds": uptime,
+        "model_path": MODEL_PATH,
+        "model_version": model_version
+    }
+
+@app.get("/health", response_model=HealthResponse, summary="Health check", tags=["Monitoring"])
+def health_check():
+    return {"status": "ok"}
+
+@app.post("/predict", response_model=PredictionResponse, summary="Predict sound class", tags=["Model Inference"])
 async def predict(file: UploadFile = File(...)):
     if not file.filename or not file.filename.lower().endswith(".wav"):
         raise HTTPException(status_code=400, detail="Only .wav files are supported")
@@ -104,46 +123,63 @@ async def predict(file: UploadFile = File(...)):
 
         if result is None:
             raise HTTPException(status_code=400, detail="Prediction failed")
-        
-        result["model_version"] = extract_model_version(MODEL_PATH)
-        result['timestamp'] = datetime.now().isoformat()
 
-        return result
+        return PredictionResponse(
+            **result,
+            model_version=model_version,
+            timestamp=datetime.now().isoformat()
+        )
 
     finally:
         if os.path.exists(temp_file):
             os.remove(temp_file)
 
-
-class RetrainResponse(BaseModel):
-    message: str
-    samples: int
-    last_accuracy: Union[float, str]
-
 @app.post(
     "/retrain",
     response_model=RetrainResponse,
     summary="Retrain the model",
-    tags=["Model Training"],
-    description="Triggers model retraining using new data in the `data` directory. "
-                "The retrained model is then hot-reloaded and saved."
+    tags=["Model Training"]
 )
 def retrain():
     try:
         print("[INFO] Starting retraining...")
-        X, y = load_data_from_directory("data/train_v1")
-        new_model, history = train_model(X, y)
+
+        model_dir = "models"
+        # Find existing version folders like model_v1, model_v2, etc.
+        existing_versions = [
+            d for d in os.listdir(model_dir)
+            if d.startswith("model_v") and os.path.isdir(os.path.join(model_dir, d))
+        ]
+        next_version_num = (
+            max([int(d.split("_v")[-1]) for d in existing_versions], default=0) + 1
+        )
+
+        # Create new version folder and model path
+        new_model_dir = os.path.join(model_dir, f"model_v{next_version_num}")
+        os.makedirs(new_model_dir, exist_ok=True)
+        new_model_path = os.path.join(new_model_dir, f"sesa_model_v{next_version_num}.keras")
+
+        # Load training data for the new version
+        train_dir = f"data/train_v{next_version_num}"
+        X, y = load_data_from_directory(train_dir)
+
+        # Train model and save to new_model_path
+        new_model, history = train_model(X, y, model_path=new_model_path)
         accuracy = history.history.get("accuracy", [None])[-1]
 
+        # Update the global model and paths inside a lock
         with model_lock:
-            global model
+            global model, MODEL_PATH, model_version
             model = new_model
-            model.save(MODEL_PATH)
+            MODEL_PATH = new_model_path
+            model_version = f"v{next_version_num}"
 
         return RetrainResponse(
             message="Model retrained successfully",
             samples=len(X),
-            last_accuracy=round(float(accuracy), 4) if accuracy else "N/A"
+            last_accuracy=round(float(accuracy), 4) if accuracy else "N/A",
+            model_version=model_version,
+            model_path=new_model_path
         )
 
     except Exception as e:

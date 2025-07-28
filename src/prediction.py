@@ -80,7 +80,7 @@ def extract_embedding(waveform: np.ndarray) -> Optional[np.ndarray]:
 
 
 
-def load_model(model_path: str = '../models/yamnet_sesa_model.keras') -> models.Model:
+def load_model(model_path: str) -> models.Model:
     """
     Load the classification model from disk.
     """

@@ -7,7 +7,6 @@ from sklearn.model_selection import train_test_split
 
 # Constants
 NUM_CLASSES = 4
-MODEL_SAVE_PATH = '../models/yamnet_sesa_model.keras'
 
 
 def build_simple_classifier():
@@ -37,7 +36,10 @@ def build_simple_classifier():
     return model
 
 
-def train_model(X, y, test_size=0.2, batch_size=32, epochs=100, model_path=MODEL_SAVE_PATH):
+def train_model(X, y, test_size=0.2, batch_size=32, epochs=100, model_path=None):
+    if model_path is None:
+        raise ValueError("model_path must be specified for saving the model")
+    
     print(f"[INFO] Splitting data: train/test = {1 - test_size}/{test_size}")
     X_train, X_val, y_train, y_val = train_test_split(
         X, y, test_size=test_size, stratify=y, random_state=42
@@ -47,7 +49,7 @@ def train_model(X, y, test_size=0.2, batch_size=32, epochs=100, model_path=MODEL
     model = build_simple_classifier()
 
     checkpoint = ModelCheckpoint(
-        filepath=MODEL_SAVE_PATH,
+        filepath=model_path,
         monitor='val_loss',
         save_best_only=True,
         verbose=1
@@ -75,7 +77,9 @@ def train_model(X, y, test_size=0.2, batch_size=32, epochs=100, model_path=MODEL
 
     return model, history
 
-def load_trained_model(model_path=MODEL_SAVE_PATH):
+def load_trained_model(model_path=None):
+    if model_path is None:
+        raise ValueError("model_path must be specified for loading the model")
     if not os.path.exists(model_path):
         raise FileNotFoundError(f"Model not found: {model_path}")
     return models.load_model(model_path)
