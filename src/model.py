@@ -7,7 +7,7 @@ from sklearn.model_selection import train_test_split
 
 # Constants
 NUM_CLASSES = 4
-MODEL_SAVE_PATH = 'models/yamnet_sesa_model.keras'
+MODEL_SAVE_PATH = '../models/yamnet_sesa_model.keras'
 
 
 def build_simple_classifier():

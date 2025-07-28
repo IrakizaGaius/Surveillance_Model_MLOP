@@ -125,13 +125,13 @@ class RetrainResponse(BaseModel):
     response_model=RetrainResponse,
     summary="Retrain the model",
     tags=["Model Training"],
-    description="Triggers model retraining using new data in the `data/train` directory. "
+    description="Triggers model retraining using new data in the `data` directory. "
                 "The retrained model is then hot-reloaded and saved."
 )
 def retrain():
     try:
         print("[INFO] Starting retraining...")
-        X, y = load_data_from_directory("data/train")
+        X, y = load_data_from_directory("data/train_v1")
         new_model, history = train_model(X, y)
         accuracy = history.history.get("accuracy", [None])[-1]
 

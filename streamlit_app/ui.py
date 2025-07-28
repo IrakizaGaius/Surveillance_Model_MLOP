@@ -5,6 +5,7 @@ import pandas as pd
 import datetime
 import os
 
+
 API_URL = "http://localhost:8000"
 
 st.set_page_config(page_title="Surveillance Audio Classifier", layout="centered")
