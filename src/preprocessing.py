@@ -7,10 +7,9 @@ import random
 import logging
 from typing import Optional, Dict, Any
 
-# Set up logger
+
 logger = logging.getLogger(__name__)
 
-# Load YAMNet model from TF Hub (full SavedModel, NOT KerasLayer)
 yamnet_model = hub.load("https://tfhub.dev/google/yamnet/1")
 
 # Label mapping
@@ -37,7 +36,6 @@ def pitch_shift(waveform, sr, n_steps=2):
 
 def time_stretch(waveform, sr=16000, rate=1.1):
     try:
-        # Minimum length needed is ~2x frame length (usually ~2048 samples)
         if len(waveform) < 4096:
             raise ValueError("Waveform too short for time stretching")
 
@@ -79,7 +77,7 @@ def extract_embedding(waveform: np.ndarray) -> Optional[np.ndarray]:
         scores, embeddings, spectrogram = yamnet_model(waveform)  # type: ignore
 
         # Mean-pool the embeddings across time (axis=0)
-        mean_embedding = tf.reduce_mean(embeddings, axis=0)  # shape: (1024,)
+        mean_embedding = tf.reduce_mean(embeddings, axis=0)
 
         if mean_embedding.shape[-1] != 1024:
             logger.warning(f"Unexpected embedding shape: {mean_embedding.shape}")

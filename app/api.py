@@ -10,12 +10,21 @@ import os
 import shutil
 import time
 import threading
+import logging
+import absl.logging
+
+
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'  # Hide TensorFlow INFO/WARNING
+absl.logging.set_verbosity('error')
+logging.getLogger("absl").setLevel(logging.ERROR)
+
 
 app = FastAPI(
     title="Surveillance Audio Classification API",
     description="An API to detect and classify sounds like gunshots, explosions, and other surveillance-related audio.",
     version="1.0.0"
 )
+
 
 # === Utility Functions ===
 
@@ -183,4 +192,5 @@ def retrain():
         )
 
     except Exception as e:
+        logging.error(f"Retraining failed: {e}")
         return JSONResponse(content={"error": str(e)}, status_code=500)

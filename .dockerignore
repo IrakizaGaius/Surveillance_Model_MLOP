@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.db
+*.log
+*.wav
+*.mp3
+.env
+venv/
+data/
+models/
+notebooks/
