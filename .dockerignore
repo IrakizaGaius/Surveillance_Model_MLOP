@@ -9,5 +9,6 @@ __pycache__/
 .env
 venv/
 notebook/
+streamlit_app/
 requirements-dev.txt
 .git

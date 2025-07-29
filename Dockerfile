@@ -24,7 +24,6 @@
     COPY app/ app/
     COPY src/ src/
     COPY models/ models/
-    COPY streamlit_app/ streamlit_app/
     COPY requirements.txt .
     COPY README.md .
     
