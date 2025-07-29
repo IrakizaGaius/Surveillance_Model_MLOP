@@ -8,6 +8,6 @@ __pycache__/
 *.mp3
 .env
 venv/
-data/
-models/
-notebooks/
+notebook/
+requirements-dev.txt
+.git
