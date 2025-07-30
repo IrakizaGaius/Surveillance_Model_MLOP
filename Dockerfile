@@ -3,16 +3,16 @@
 
     WORKDIR /app
     
-    # Install only necessary build tools temporarily
+    # Install necessary build tools temporarily
     RUN apt-get update && apt-get install -y --no-install-recommends \
         build-essential \
         ffmpeg \
      && apt-get clean && rm -rf /var/lib/apt/lists/*
     
-    # Upgrade pip and build tools
+    # Upgrade pip and wheel without caching
     RUN pip install --upgrade pip setuptools wheel --no-cache-dir
     
-    # Copy only requirements.txt to leverage Docker cache
+    # Copy only requirements.txt for caching efficiency
     COPY requirements.txt .
     
     # Build wheels for all dependencies
@@ -28,34 +28,40 @@
         PATH="/app/deps/bin:$PATH" \
         PYTHONPATH="/app/deps"
     
-    # Install only minimal runtime dependencies
+    # Install minimal runtime dependencies
     RUN apt-get update && apt-get install -y --no-install-recommends \
         ffmpeg \
+        binutils \
      && apt-get clean && rm -rf /var/lib/apt/lists/*
     
-    # Copy pre-built wheels from builder stage and install without dependencies
+    # Copy pre-built wheels and install without dependencies
     COPY --from=builder /app/wheels /wheels
     RUN pip install --no-cache-dir --no-deps --target=/app/deps /wheels/* \
      && rm -rf /wheels
     
-    # Optional: Strip unnecessary files to reduce size
-    RUN find /app/deps -name '*.pyc' -delete \
+    # Strip debug symbols from shared objects to reduce size
+    RUN find /app/deps -type f -name '*.so' -exec strip --strip-unneeded {} + || true
+    
+    # Delete unnecessary files to minimize image size
+    RUN find /app/deps -type d -name '__pycache__' -exec rm -rf {} + \
+     && find /app/deps -name '*.pyc' -delete \
      && find /app/deps -name '*.dist-info' -exec rm -rf {} + \
-     && find /app/deps -type d -name 'tests' -exec rm -rf {} +
+     && find /app/deps -type d -name 'tests' -exec rm -rf {} + \
+     && apt-get purge -y binutils && rm -rf /var/lib/apt/lists/*
     
     # Create writable folders
     RUN mkdir -p models data
     
-    # Copy application code (keep this minimal if possible)
+    # Copy application code (ensure no bloat in models/)
     COPY app/ app/
     COPY src/ src/
     COPY requirements.txt .
     COPY README.md .
     COPY models/ models/
     
-    # Expose FastAPI default port
+    # Expose FastAPI port
     EXPOSE 8000
     
-    # Run the FastAPI app
+    # Start the app
     CMD ["uvicorn", "app.api:app", "--host", "0.0.0.0", "--port", "8000"]
     
