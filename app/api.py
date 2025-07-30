@@ -12,6 +12,9 @@ import time
 import threading
 import logging
 import absl.logging
+from fastapi.middleware.cors import CORSMiddleware
+
+
 
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'  # Hide TensorFlow INFO/WARNING
@@ -25,6 +28,13 @@ app = FastAPI(
     version="1.0.0"
 )
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # === Utility Functions ===
 
