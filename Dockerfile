@@ -43,6 +43,7 @@
     COPY app/ app/
     COPY src/ src/
     COPY requirements.txt .
+    COPY models/ models/
     COPY README.md .
     
     # Expose default port for Uvicorn
