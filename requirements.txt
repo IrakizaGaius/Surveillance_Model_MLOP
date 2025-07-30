@@ -1,7 +1,7 @@
 fastapi==0.115.0
 uvicorn==0.30.6
-tensorflow-cpu==2.15.0
-tensorflow_hub==0.16.1
+tensorflow-cpu
+tensorflow_hub
 librosa==0.10.2
 pydub==0.25.1
 numpy==1.26.4
