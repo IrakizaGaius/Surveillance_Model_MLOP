@@ -3,10 +3,12 @@
 import os
 import re
 from datetime import datetime
+from keras.models import load_model, save_model as keras_save_model
+
 from src.model import train_model
 from src.preprocessing import load_data_from_directory
-from keras.models import save_model as keras_save_model
 
+# Directories and naming
 DATA_DIR = "data"
 MODEL_DIR = "models"
 MODEL_NAME_BASE = "yamnet_sesa_model"
@@ -30,7 +32,7 @@ def save_version_number(version: int):
         f.write(str(version))
 
 def main():
-    # Get most recent training data folder
+    # Get latest training data folder
     versions = [d for d in os.listdir(DATA_DIR) if re.match(r"train_v\d+", d)]
     if not versions:
         print("[ERROR] No versioned training data found (e.g., 'train_v1')")
@@ -44,12 +46,20 @@ def main():
         print("[ERROR] No training data loaded.")
         return
 
+    # Load latest model if exists
+    alias_model_path = os.path.join(MODEL_DIR, LATEST_MODEL_ALIAS)
+    if os.path.exists(alias_model_path):
+        print(f"[INFO] Loading existing model from: {alias_model_path}")
+        model = load_model(alias_model_path)
+    else:
+        print("[INFO] No existing model found. Starting training from scratch.")
+        model = None
+
     print(f"[INFO] Training on {len(X)} samples...")
-    model, history = train_model(X, y)
+    model, history = train_model(X, y, model_path=alias_model_path)
 
     version = get_next_version()
     versioned_model_path = os.path.join(MODEL_DIR, f"{MODEL_NAME_BASE}_v{version}.keras")
-    alias_model_path = os.path.join(MODEL_DIR, LATEST_MODEL_ALIAS)
 
     keras_save_model(model, versioned_model_path)
     keras_save_model(model, alias_model_path)
