@@ -1,52 +1,330 @@
+# 🎵 Surveillance Sound Classification API
 
-# **Sound Events for Surveillance Applications (SESA) Dataset**
+A real-time audio classification system designed to detect and classify surveillance-related sounds such as gunshots, explosions, and emergency sirens. This project implements a machine learning model using YAMNet embeddings and provides both REST API and web interface for sound classification.
 
-**Author:** Tito Spadini
+## 📺 Video Demo
 
-A curated audio dataset designed for  **surveillance-based sound event detection (SED)** , focusing on threat detection in security applications. This dataset is ideal for training **machine learning models** to classify hazardous sounds such as gunshots, explosions, and alarms.
+YouTube Demo Link - [Video Demo](https://surveillancemodelmlop-production.up.railway.app/docs)
 
-## **Dataset Overview**
+## 🌐 Live Applications
 
-### **Classes**
+- **Backend API**: [Railway Deployment](https://surveillancemodelmlop-production.up.railway.app/docs)
+- **Frontend UI**: [Hugging Face Spaces](https://huggingface.co/spaces/GaiusIrakiza/Sound-surveillance-Model)
 
-The dataset contains **4 distinct classes** of sound events:
+## 🎯 Project Description
 
-* **0 - Casual** (non-threatening sounds, background noise)
-* **1 - Gunshot** (firearms discharge)
-* **2 - Explosion** (bombs, blasts)
-* **3 - Siren** (emergency alarms, police/ambulance sirens)
+This project implements a **Sound Events for Surveillance Applications (SESA)** classification system that can identify four distinct types of audio:
 
-### **Audio Specifications**
+- **0 - Casual** (non-threatening sounds, background noise)
+- **1 - Gunshot** (firearms discharge)
+- **2 - Explosion** (bombs, blasts)
+- **3 - Siren** (emergency alarms, police/ambulance sirens)
 
-* **Format:** WAV
-* **Channels:** Mono
-* **Sampling Rate:** 16 kHz
-* **Bit Depth:** 16-bit
-* **Duration:** Up to **33 seconds** per clip
+### Key Features
 
-### **Dataset Split**
+- Real-time audio classification using YAMNet embeddings
+- RESTful API with FastAPI
+- Model versioning and retraining capabilities
+- Web interface with Streamlit
+- Load testing with Locust
+- Docker containerization
+- Comprehensive preprocessing pipeline with data augmentation
 
-* **Training Set:** 480 audio files
-* **Test Set:** 105 audio files
+## 📊 Model Performance
 
-## **Intended Use Cases**
+The trained model achieves the following performance metrics:
 
-This dataset is suitable for:
-✔ **Surveillance & Security Systems** – Detecting gunshots, explosions, and alarms in real-time.
-✔ **Emergency Response AI** – Automating threat detection for law enforcement.
-✔ **Machine Learning Research** – Benchmarking **audio classification** and **anomaly detection** models.
+```
+              precision    recall  f1-score   support
+      Casual       0.96      0.79      0.87        29
+     Gunshot       0.90      0.86      0.88        21
+   Explosion       0.88      0.97      0.93        39
+ Siren/Alarm       0.89      1.00      0.94        16
 
-## **Source & Curation**
+    accuracy                           0.90       105
+   macro avg       0.91      0.91      0.90       105
+weighted avg       0.91      0.90      0.90       105
+```
 
-* Audio files were sourced from **Freesound** and manually verified.
-* Balanced distribution between threat/non-threat categories.
+## 🚀 Quick Start
 
-## **How to Use**
+### Prerequisites
 
-1. Clone this repository.
-2. Load the dataset using Python libraries like `librosa` or `torchaudio`.
-3. Train a **CNN, RNN, or Transformer-based model** (e.g., YAMNet, VGGish) for sound classification.
+- Python 3.10+
+- Docker (optional)
+- 4GB+ RAM recommended
 
-## **License**
+### Local Setup
 
-[Specify License – e.g., **CC-BY 4.0** or  **MIT** ]
+1. **Clone the repository**
+
+   ```bash
+   git clone https://github.com/your-username/Surveillance_Model_MLOP.git
+   cd Surveillance_Model_MLOP
+   ```
+2. **Create virtual environment**
+
+   ```bash
+   python -m venv venv
+   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   ```
+3. **Install dependencies**
+
+   ```bash
+   pip install -r requirements.txt
+   pip install -r requirements-dev.txt  # For development tools
+   ```
+4. **Run the API server**
+
+   ```bash
+   uvicorn app.api:app --host 0.0.0.0 --port 8000 --reload
+   ```
+5. **Access the API**
+
+   - API Documentation: http://localhost:8000/docs
+   - Health Check: http://localhost:8000/health
+   - Status: http://localhost:8000/status
+
+### Docker Setup
+
+1. **Build the Docker image**
+
+   ```bash
+   docker build -t surveillance-sound-api .
+   ```
+2. **Run the container**
+
+   ```bash
+   docker run -p 8000:8000 surveillance-sound-api
+   ```
+
+## 📁 Project Structure
+
+```
+Surveillance_Model_MLOP/
+├── app/
+│   └── api.py                 # FastAPI application
+├── data/
+│   ├── train_v1/             # Training audio files
+│   ├── test/                 # Test audio files
+│   └── SESA.txt             # Dataset description
+├── models/
+│   └── model_v1/
+│       └── sesa_model_v1.keras  # Trained model file
+├── src/
+│   ├── model.py              # Model architecture and training
+│   ├── preprocessing.py      # Audio preprocessing pipeline
+│   └── prediction.py         # Prediction functions
+├── notebook/
+│   └── sound_surveillance.ipynb  # Jupyter notebook with analysis
+├── streamlit_app/
+│   └── ui.py                 # Streamlit web interface
+├── requirements.txt          # Production dependencies
+├── requirements-dev.txt      # Development dependencies
+├── Dockerfile               # Docker configuration
+├── locustfile.py           # Load testing configuration
+└── README.md               # This file
+```
+
+## 🔧 API Endpoints
+
+### Core Endpoints
+
+| Endpoint     | Method | Description                 |
+| ------------ | ------ | --------------------------- |
+| `/`        | GET    | Root status check           |
+| `/health`  | GET    | Health check                |
+| `/status`  | GET    | API status with model info  |
+| `/predict` | POST   | Classify audio file         |
+| `/retrain` | POST   | Retrain model with new data |
+
+### Example Usage
+
+**Predict sound class:**
+
+```bash
+curl -X POST "http://localhost:8000/predict" \
+     -H "accept: application/json" \
+     -H "Content-Type: multipart/form-data" \
+     -F "file=@data/test/casual_000.wav"
+```
+
+**Response:**
+
+```json
+{
+  "class_id": 0,
+  "label": "Casual",
+  "confidence": 0.95,
+  "model_version": "v1",
+  "timestamp": "2024-01-15T10:30:00"
+}
+```
+
+## 📓 Jupyter Notebook
+
+The `notebook/sound_surveillance.ipynb` contains detailed analysis including:
+
+### 1. Data Preprocessing
+
+- Audio loading and resampling to 16kHz
+- YAMNet embedding extraction (1024-dimensional features)
+- Data augmentation techniques:
+  - Noise addition
+  - Pitch shifting
+  - Time stretching
+- Feature normalization and validation
+
+### 2. Model Training
+
+- Sequential neural network architecture
+- Dense layers with batch normalization and dropout
+- Early stopping and learning rate reduction
+- Model checkpointing for best weights
+
+### 3. Model Evaluation
+
+- Classification report with precision, recall, F1-score
+- Confusion matrix visualization
+- Per-class performance analysis
+
+### 4. Prediction Functions
+
+- Single file prediction
+- Confidence scoring
+- Error handling and validation
+
+## 🧠 Model Architecture
+
+The model uses a **Sequential Neural Network** with the following architecture:
+
+```
+Input (1024,) → Dense(512) → BatchNorm → ReLU → Dropout(0.5)
+              → Dense(256) → ReLU → Dropout(0.3)
+              → Dense(128) → ReLU → Dropout(0.2)
+              → Dense(64) → ReLU → Dropout(0.1)
+              → Dense(32) → ReLU → Dropout(0.1)
+              → Dense(4) → Softmax
+```
+
+**Key Features:**
+
+- **Input**: 1024-dimensional YAMNet embeddings
+- **Optimizer**: Adam with learning rate scheduling
+- **Loss**: Sparse categorical crossentropy
+- **Regularization**: Dropout layers and batch normalization
+- **Output**: 4-class probability distribution
+
+## 📊 Load Testing Results
+
+Run load testing with Locust:
+
+```bash
+locust -f locustfile.py --host=http://localhost:8000
+```
+
+
+## 🎵 Audio Specifications
+
+- **Format**: WAV files only
+- **Channels**: Mono
+- **Sampling Rate**: 16 kHz
+- **Bit Depth**: 16-bit
+- **Duration**: Up to 33 seconds per clip
+- **Max File Size**: 100MB per file
+
+## 🔄 Model Retraining
+
+The API supports incremental model retraining:
+
+```bash
+curl -X POST "http://localhost:8000/retrain" \
+     -H "accept: application/json" \
+     -H "Content-Type: multipart/form-data" \
+     -F "files=@new_audio_1.wav" \
+     -F "files=@new_audio_2.wav"
+```
+
+**Features:**
+
+- Automatic model versioning
+- Incremental learning from previous model
+- Data augmentation during training
+- Validation and checkpointing
+
+## 🛠️ Development
+
+### Running Tests
+
+```bash
+# Load testing
+locust -f locustfile.py --host=http://localhost:8000
+
+# Streamlit interface
+streamlit run streamlit_app/ui.py
+```
+
+### Code Quality
+
+- Type hints throughout the codebase
+- Comprehensive logging
+- Error handling and validation
+- Modular architecture
+
+## 📦 Model Files
+
+The trained model is saved as a **Keras (.keras) file**:
+
+- **Location**: `models/model_v1/sesa_model_v1.keras`
+- **Size**: ~2MB
+- **Format**: TensorFlow/Keras SavedModel
+- **Compatibility**: TensorFlow 2.x
+
+## 🚀 Deployment
+
+### Railway Deployment
+
+1. Connect your GitHub repository to Railway
+2. Set environment variables if needed
+3. Deploy automatically on push to main branch
+
+### Hugging Face Spaces
+
+1. Create a new Space with Streamlit
+2. Upload the `streamlit_app/ui.py` file
+3. Configure requirements and dependencies
+
+### Local Production
+
+```bash
+# Using Gunicorn
+pip install gunicorn
+gunicorn app.api:app -w 4 -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000
+```
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests if applicable
+5. Submit a pull request
+
+## 🙏 Acknowledgments
+
+- **Dataset**: SESA (Sound Events for Surveillance Applications)
+- **Embeddings**: YAMNet by Google Research
+- **Framework**: FastAPI, TensorFlow, Streamlit
+- **Author**: Tito Spadini
+
+## 📞 Support
+
+For questions or issues:
+
+- Create an issue on GitHub
+- Contact: g.irakiza@alustudent.com
+- Documentation: [API Docs](https://surveillancemodelmlop-production.up.railway.app/docs)
+
+---
+
+**Note**: This system is designed for educational and research purposes. For production surveillance applications, ensure compliance with local laws and regulations.
