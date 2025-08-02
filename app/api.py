@@ -13,6 +13,7 @@ import threading
 import logging
 import absl.logging
 from fastapi.middleware.cors import CORSMiddleware
+from typing import List
 
 
 
@@ -159,7 +160,7 @@ async def predict(file: UploadFile = File(...)):
     summary="Retrain the model with uploaded data",
     tags=["Model Training"]
 )
-async def retrain(file: UploadFile = File(...)):
+async def retrain(files: List[UploadFile] = File(...)):
     temp_data_dir = None
     try:
         print("[INFO] Starting retraining...")
@@ -176,32 +177,38 @@ async def retrain(file: UploadFile = File(...)):
         # Create temporary directory for uploaded data
         temp_data_dir = f"data/temp_train_v{next_version_num}"
         os.makedirs(temp_data_dir, exist_ok=True)
+        logging.info(f"Created temporary directory: {temp_data_dir}")
 
-        # Save uploaded file temporarily
-        if not file.filename:
-            raise HTTPException(status_code=400, detail="No file uploaded")
-        temp_file_path = os.path.join(temp_data_dir, os.path.basename(file.filename))
-        with open(temp_file_path, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
-
-        # Create new version folder and model path
-        new_model_dir = os.path.join(model_dir, f"model_v{next_version_num}")
-        os.makedirs(new_model_dir, exist_ok=True)
-        new_model_path = os.path.join(new_model_dir, f"sesa_model_v{next_version_num}.keras")
+        # Save uploaded files temporarily
+        for file in files:
+            if file.content_type != "audio/wav":
+                raise HTTPException(status_code=400, detail=f"File {file.filename} is not a .wav file")
+            # file.size may be None, so check for that
+            if hasattr(file, "size") and file.size is not None and file.size > 100 * 1024 * 1024:  # 100MB limit per file
+                raise HTTPException(status_code=400, detail=f"File {file.filename} exceeds 100MB limit")
+            
+            # Ensure file.filename is a string and not None
+            filename = file.filename or "uploaded.wav"
+            temp_file_path = os.path.join(temp_data_dir, filename)
+            with open(temp_file_path, "wb") as buffer:
+                shutil.copyfileobj(file.file, buffer)
+            logging.info(f"Saved uploaded file to: {temp_file_path}")
 
         # Load previous model if exists
         previous_model_path = os.path.join(model_dir, f"model_v{current_version_num}", f"sesa_model_v{current_version_num}.keras")
-        if os.path.exists(previous_model_path):
-            base_model = load_model(previous_model_path)
-        else:
-            base_model = None  # Or initialize a new model if preferred
+        base_model = load_model(previous_model_path) if os.path.exists(previous_model_path) else None
 
         # Load training data from temporary directory
         X, y = load_data_from_directory(temp_data_dir)
 
         # Train model with new data, using previous model as base
-        new_model, history = train_model(X, y, model_path=new_model_path)
+        new_model, history = train_model(X, y, model_path=base_model)
         accuracy = history.history.get("accuracy", [None])[-1]
+
+        # Create new version folder and model path
+        new_model_dir = os.path.join(model_dir, f"model_v{next_version_num}")
+        os.makedirs(new_model_dir, exist_ok=True)
+        new_model_path = os.path.join(new_model_dir, f"sesa_model_v{next_version_num}.keras")
 
         # Update the global model and paths inside a lock
         with model_lock:
@@ -211,7 +218,9 @@ async def retrain(file: UploadFile = File(...)):
             model_version = f"v{next_version_num}"
 
         # Clean up temporary data
-        shutil.rmtree(temp_data_dir)
+        if temp_data_dir and os.path.exists(temp_data_dir):
+            shutil.rmtree(temp_data_dir)
+            logging.info(f"Removed temporary directory: {temp_data_dir}")
 
         return RetrainResponse(
             message="Model retrained successfully",
@@ -223,8 +232,8 @@ async def retrain(file: UploadFile = File(...)):
 
     except Exception as e:
         logging.error(f"Retraining failed: {e}")
-        # Ensure temporary data is removed even if retraining fails
-        temp_dir = locals().get('temp_data_dir')
-        if temp_dir is not None and isinstance(temp_dir, str) and os.path.exists(temp_dir):
-            shutil.rmtree(temp_dir)
+        # Clean up temporary data if it exists
+        if temp_data_dir and os.path.exists(temp_data_dir):
+            shutil.rmtree(temp_data_dir)
+            logging.info(f"Removed temporary directory on error: {temp_data_dir}")
         raise HTTPException(status_code=500, detail=str(e))
