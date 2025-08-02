@@ -4,10 +4,13 @@ import tensorflow as tf
 from keras import layers, models
 from keras.callbacks import EarlyStopping, ReduceLROnPlateau, ModelCheckpoint
 from sklearn.model_selection import train_test_split
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
 
 # Constants
 NUM_CLASSES = 4
-
 
 def build_simple_classifier():
     model = models.Sequential([
@@ -24,8 +27,6 @@ def build_simple_classifier():
         layers.Dropout(0.1),
         layers.Dense(32, activation='relu'),
         layers.Dropout(0.1),
-
-        # Output layer with softmax activation for multi-class classification
         layers.Dense(NUM_CLASSES, activation='softmax')
     ])
     model.compile(
@@ -33,20 +34,34 @@ def build_simple_classifier():
         loss='sparse_categorical_crossentropy',
         metrics=['accuracy']
     )
+    logging.info("Built new Sequential model")
     return model
 
+def train_model(
+    X, y,
+    model_path: str,
+    base_model: models.Sequential | None = None,
+    test_size: float = 0.2,
+    batch_size: int = 32,
+    epochs: int = 100
+):
+    if not isinstance(model_path, str):
+        raise ValueError("model_path must be a string")
+    if not model_path.endswith('.keras'):
+        model_path += '.keras'
+        logging.info(f"Appended .keras to model_path: {model_path}")
 
-def train_model(X, y, test_size=0.2, batch_size=32, epochs=100, model_path=None):
-    if model_path is None:
-        raise ValueError("model_path must be specified for saving the model")
-    
     print(f"[INFO] Splitting data: train/test = {1 - test_size}/{test_size}")
     X_train, X_val, y_train, y_val = train_test_split(
         X, y, test_size=test_size, stratify=y, random_state=42
     )
 
-    print("[INFO] Building model...")
-    model = build_simple_classifier()
+    print("[INFO] Building or loading model...")
+    if base_model is None:
+        model = build_simple_classifier()
+    else:
+        model = base_model
+        logging.info("Using existing model for fine-tuning")
 
     checkpoint = ModelCheckpoint(
         filepath=model_path,
@@ -71,15 +86,16 @@ def train_model(X, y, test_size=0.2, batch_size=32, epochs=100, model_path=None)
         verbose="auto"
     )
 
-    os.makedirs(os.path.dirname(model_path), exist_ok=True)
     model.save(model_path)
-    print(f"[INFO] Model saved to {model_path}")
+    logging.info(f"Model saved to: {model_path}")
 
     return model, history
 
-def load_trained_model(model_path=None):
-    if model_path is None:
-        raise ValueError("model_path must be specified for loading the model")
+def load_trained_model(model_path: str = "None"):
+    if not isinstance(model_path, str):
+        raise ValueError("model_path must be a string")
     if not os.path.exists(model_path):
         raise FileNotFoundError(f"Model not found: {model_path}")
-    return models.load_model(model_path)
+    model = models.load_model(model_path)
+    logging.info(f"Loaded model from: {model_path}")
+    return model
