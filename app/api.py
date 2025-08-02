@@ -175,6 +175,7 @@ async def retrain(files: List[UploadFile] = File(...)):
             raise HTTPException(status_code=400, detail=f"Total file size ({total_size // (1024 * 1024)}MB) exceeds 500MB limit")
 
         model_dir = "models"
+        os.makedirs(model_dir, exist_ok=True)  # Ensure model directory exists
         existing_versions = [
             d for d in os.listdir(model_dir)
             if d.startswith("model_v") and os.path.isdir(os.path.join(model_dir, d))
@@ -206,16 +207,23 @@ async def retrain(files: List[UploadFile] = File(...)):
         new_model_path = os.path.join(new_model_dir, f"sesa_model_v{next_version_num}.keras")
         logging.info(f"New model path: {new_model_path}")
 
-        # Load previous model if exists
+        # Attempt to load previous model or fallback to v1
+        base_model = None
         previous_model_path = os.path.join(model_dir, f"model_v{current_version_num}", f"sesa_model_v{current_version_num}.keras")
-        base_model = load_model(previous_model_path) if os.path.exists(previous_model_path) else None
-        logging.info(f"Loaded previous model from: {previous_model_path if base_model else 'None'}")
+        v1_model_path = os.path.join(model_dir, "model_v1", "sesa_model_v1.keras")
+
+        if os.path.exists(previous_model_path):
+            base_model = load_model(previous_model_path)
+            logging.info(f"Loaded previous model from: {previous_model_path}")
+        elif os.path.exists(v1_model_path):
+            base_model = load_model(v1_model_path)
+            logging.info(f"No latest model found, loaded v1 model from: {v1_model_path}")
 
         # Load training data from temporary directory
         X, y = load_data_from_directory(temp_data_dir)
         logging.info(f"Loaded {len(X)} samples from {temp_data_dir}")
 
-        # Train model with new data, using previous model as base
+        # Train model with new data, using base model
         new_model, history = train_model(X, y, model_path=new_model_path, base_model=base_model)
         accuracy = history.history.get("accuracy", [None])[-1]
         logging.info(f"Training completed with accuracy: {accuracy}")
@@ -242,8 +250,8 @@ async def retrain(files: List[UploadFile] = File(...)):
         )
 
     except Exception as e:
-        logging.error(f"Retraining failed: {e}")
+        logging.error(f"Retraining failed: {str(e)}")
         if temp_data_dir and os.path.exists(temp_data_dir):
             shutil.rmtree(temp_data_dir)
             logging.info(f"Removed temporary directory on error: {temp_data_dir}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"Retraining failed: {str(e)}")
