@@ -156,10 +156,11 @@ async def predict(file: UploadFile = File(...)):
 @app.post(
     "/retrain",
     response_model=RetrainResponse,
-    summary="Retrain the model",
+    summary="Retrain the model with uploaded data",
     tags=["Model Training"]
 )
-def retrain():
+async def retrain(file: UploadFile = File(...)):
+    temp_data_dir = None
     try:
         print("[INFO] Starting retraining...")
 
@@ -169,20 +170,36 @@ def retrain():
             d for d in os.listdir(model_dir)
             if d.startswith("model_v") and os.path.isdir(os.path.join(model_dir, d))
         ]
-        next_version_num = (
-            max([int(d.split("_v")[-1]) for d in existing_versions], default=0) + 1
-        )
+        current_version_num = max([int(d.split("_v")[-1]) for d in existing_versions], default=0)
+        next_version_num = current_version_num + 1
+
+        # Create temporary directory for uploaded data
+        temp_data_dir = f"data/temp_train_v{next_version_num}"
+        os.makedirs(temp_data_dir, exist_ok=True)
+
+        # Save uploaded file temporarily
+        if not file.filename:
+            raise HTTPException(status_code=400, detail="No file uploaded")
+        temp_file_path = os.path.join(temp_data_dir, os.path.basename(file.filename))
+        with open(temp_file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
 
         # Create new version folder and model path
         new_model_dir = os.path.join(model_dir, f"model_v{next_version_num}")
         os.makedirs(new_model_dir, exist_ok=True)
         new_model_path = os.path.join(new_model_dir, f"sesa_model_v{next_version_num}.keras")
 
-        # Load training data for the new version
-        train_dir = f"data/train_v{next_version_num}"
-        X, y = load_data_from_directory(train_dir)
+        # Load previous model if exists
+        previous_model_path = os.path.join(model_dir, f"model_v{current_version_num}", f"sesa_model_v{current_version_num}.keras")
+        if os.path.exists(previous_model_path):
+            base_model = load_model(previous_model_path)
+        else:
+            base_model = None  # Or initialize a new model if preferred
 
-        # Train model and save to new_model_path
+        # Load training data from temporary directory
+        X, y = load_data_from_directory(temp_data_dir)
+
+        # Train model with new data, using previous model as base
         new_model, history = train_model(X, y, model_path=new_model_path)
         accuracy = history.history.get("accuracy", [None])[-1]
 
@@ -192,6 +209,9 @@ def retrain():
             model = new_model
             MODEL_PATH = new_model_path
             model_version = f"v{next_version_num}"
+
+        # Clean up temporary data
+        shutil.rmtree(temp_data_dir)
 
         return RetrainResponse(
             message="Model retrained successfully",
@@ -203,4 +223,8 @@ def retrain():
 
     except Exception as e:
         logging.error(f"Retraining failed: {e}")
-        return JSONResponse(content={"error": str(e)}, status_code=500)
+        # Ensure temporary data is removed even if retraining fails
+        temp_dir = locals().get('temp_data_dir')
+        if temp_dir is not None and isinstance(temp_dir, str) and os.path.exists(temp_dir):
+            shutil.rmtree(temp_dir)
+        raise HTTPException(status_code=500, detail=str(e))
