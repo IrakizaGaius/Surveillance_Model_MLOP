@@ -4,7 +4,7 @@ A real-time audio classification system designed to detect and classify surveill
 
 ## 📺 Video Demo
 
-YouTube Demo Link - [Video Demo](https://surveillancemodelmlop-production.up.railway.app/docs)
+YouTube Demo Link - [Video Demo](https://youtu.be/z1gbdaEpn98)
 
 ## 🌐 Live Applications
 
@@ -223,6 +223,67 @@ Run load testing with Locust:
 locust -f locustfile.py --host=http://localhost:8000
 ```
 
+### 🎯 **Test Configuration:**
+
+- **Users**: 500 concurrent users
+- **Ramp-up**: 10 seconds (50 users/second)
+- **Test Duration**: 400 seconds
+- **Endpoint**: `/predict` with audio file upload
+
+### 📈 **Actual Performance Results:**
+
+![Locust Load Testing Dashboard](load_testing_results.png)
+
+**Key Metrics from Load Test:**
+
+- **Total Requests**: 3,039
+- **Success Rate**: 100% (0 failures)
+- **Current RPS**: 9 requests/second
+- **Average Response Time**: 56.1 seconds
+- **Median Response Time**: 54 seconds
+- **95th Percentile**: 88 seconds
+- **99th Percentile**: 125 seconds
+- **Min Response Time**: 438ms
+- **Max Response Time**: 126.1 seconds
+
+### ⚠️ **Performance Analysis:**
+
+**Strengths:**
+
+- ✅ **Zero failures** - System is stable under load
+- ✅ **Consistent throughput** - 9 RPS maintained
+- ✅ **No errors** - API handles requests reliably
+
+**Areas for Improvement:**
+
+- ⚠️ **High response times** - Average 56 seconds is too slow
+- ⚠️ **Large variance** - Response times range from 438ms to 126 seconds
+- ⚠️ **ML inference bottleneck** - Audio processing is CPU-intensive
+
+### 🔧 **Optimization Recommendations:**
+
+1. **Model Optimization:**
+
+   - Consider model quantization for faster inference
+   - Implement model caching for repeated predictions
+   - Use GPU acceleration if available
+2. **API Improvements:**
+
+   - Add request queuing for better resource management
+   - Implement async processing for audio files
+   - Add response caching for similar audio inputs
+3. **Infrastructure:**
+
+   - Scale horizontally with multiple API instances
+   - Use load balancers for better distribution
+   - Optimize server resources (CPU, RAM)
+
+### 📊 **Target Performance Goals:**
+
+- **Response Time**: <5 seconds average
+- **RPS**: 20+ requests/second
+- **Error Rate**: <1%
+- **Consistency**: <2x variance in response times
 
 ## 🎵 Audio Specifications
 
